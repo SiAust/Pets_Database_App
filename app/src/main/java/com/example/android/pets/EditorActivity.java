@@ -28,7 +28,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.Toast;
 
 import com.example.android.pets.data.PetContract.PetEntry;
 import com.example.android.pets.data.PetDbHelper;
@@ -116,24 +115,28 @@ public class EditorActivity extends AppCompatActivity {
 
         String nameString = mNameEditText.getText().toString().trim();
         String breedString = mBreedEditText.getText().toString().trim();
-        int weightInt = Integer.parseInt(mWeightEditText.getText().toString().trim());
+        String weightString = mWeightEditText.getText().toString().trim();
+        int weight = Integer.parseInt(weightString);
 
         ContentValues values = new ContentValues();
         values.put(PetEntry.COLUMN_PET_NAME, nameString);
         values.put(PetEntry.COLUMN_PET_BREED, breedString);
         values.put(PetEntry.COLUMN_PET_GENDER, mGender);
-        values.put(PetEntry.COLUMN_PET_WEIGHT, weightInt);
+        values.put(PetEntry.COLUMN_PET_WEIGHT, weight);
 
-        mRowId = db.insert(PetEntry.TABLE_NAME, null, values);
+        getContentResolver().insert(PetEntry.CONTENT_URI, values);
+
+//        mRowId = db.insert(PetEntry.TABLE_NAME, null, values);
     }
 
-    private void makeToast() {
-        if (mRowId >= 1){
-            Toast.makeText(this, "Pet saved with id: " + mRowId, Toast.LENGTH_SHORT).show();
-        } else {
+    /* Moved toast messages to PetProvider temporarily
+     private void makeToast() {
+        if (mRowId == -1){
             Toast.makeText(this, "Error saving pet", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Pet saved with id: " + mRowId, Toast.LENGTH_SHORT).show();
         }
-    }
+    } */
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -151,7 +154,7 @@ public class EditorActivity extends AppCompatActivity {
             case R.id.action_save:
                 insertPet();
                 finish();
-                makeToast();
+                //makeToast();
                 return true;
             // Respond to a click on the "Delete" menu option
             case R.id.action_delete:

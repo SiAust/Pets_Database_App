@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.example.android.pets.data.PetContract.PetEntry;
 
@@ -104,13 +105,38 @@ public class PetProvider extends ContentProvider {
         }
     }
 
-    private Uri insertPet(Uri uri, ContentValues contentValues) {
+    private Uri insertPet(Uri uri, ContentValues values) {
+        //Data validation of each ContentValues item
+        String name = values.getAsString(PetEntry.COLUMN_PET_NAME);
+        Log.i(LOG_TAG, "name value: " + name);
+        if (name == null||name.isEmpty()) {
+            throw new IllegalArgumentException("Pet requires a name");
+        }
+        String breed = values.getAsString(PetEntry.COLUMN_PET_BREED);
+        if (breed == null) {
+            throw new IllegalArgumentException("Pet requires a breed");
+        }
+        Integer weight = values.getAsInteger(PetEntry.COLUMN_PET_WEIGHT);
+        if (weight != null && weight < 0) {
+            throw new IllegalArgumentException("Pet requires a weight");
+        }
+        Integer gender = values.getAsInteger(PetEntry.COLUMN_PET_GENDER);
+        if (!PetEntry.isValidGender(gender)) {
+            throw new IllegalArgumentException("Pet requires a gender");
+        }
         //Get writable database
         SQLiteDatabase database = mDbHelper.getWritableDatabase();
 
-        long rowId = database.insert(PetEntry.TABLE_NAME, null, contentValues);
+        long rowId = database.insert(PetEntry.TABLE_NAME, null, values);
 
-        return ContentUris.withAppendedId(PetEntry.CONTENT_URI, rowId);
+        if (rowId == -1){
+            Log.e(LOG_TAG, "Failed to insert row for " + uri);
+            Toast.makeText(getContext(), "Error saving pet", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(getContext(), "Pet saved with id: " + rowId, Toast.LENGTH_SHORT).show();
+        }
+
+        return ContentUris.withAppendedId(uri, rowId);
     }
 
     @Override
