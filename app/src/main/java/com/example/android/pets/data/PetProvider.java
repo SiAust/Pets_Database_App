@@ -81,13 +81,28 @@ public class PetProvider extends ContentProvider {
             default:
                 throw new IllegalArgumentException("Cannot query unknown URI " + uri);
         }
+
+        cursor.setNotificationUri(getContext().getContentResolver(), uri);
+
+
         return cursor;
     }
 
     @Nullable
     @Override
     public String getType(@NonNull Uri uri) {
-        return null;
+        int match = sUriMatcher.match(uri);
+        switch (match) {
+            case PETS: {
+                return PetEntry.CONTENT_LIST_TYPE;
+            }
+            case PET_ID: {
+                return PetEntry.CONTENT_ITEM_TYPE;
+            }
+            default: {
+                throw new IllegalArgumentException("Unknown URI " + uri + "with match " + match);
+            }
+        }
     }
 
     @Nullable
@@ -135,17 +150,107 @@ public class PetProvider extends ContentProvider {
         } else {
             Toast.makeText(getContext(), "Pet saved with id: " + rowId, Toast.LENGTH_SHORT).show();
         }
-
+        getContext().getContentResolver().notifyChange(uri, null);
         return ContentUris.withAppendedId(uri, rowId);
     }
 
+    /* private void warningToast (int warningCode) {
+        switch (warningCode) {
+            case 1: {
+                Toast.makeText(getContext(), "some shit just happened hommie", Toast.LENGTH_SHORT);
+            }
+            case 2: {
+                Toast.makeText(getContext(), "an error number 2 sir", Toast.LENGTH_SHORT);
+            }
+        }
+    } */
+
     @Override
     public int delete(@NonNull Uri uri, @Nullable String selection, @Nullable String[] selectionArgs) {
-        return 0;
+        SQLiteDatabase database = mDbHelper.getWritableDatabase();
+
+        final int match = sUriMatcher.match(uri);
+        switch (match) {
+            case PETS: {
+                int rowsDeleted = database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+                if (rowsDeleted != 0) {
+                    getContext().getContentResolver().notifyChange(uri, null);
+                }
+                return rowsDeleted;
+
+            }
+            case PET_ID: {
+                selection = PetEntry._ID + "=?";
+                selectionArgs = new String[] { String.valueOf(ContentUris.parseId(uri))};
+
+                int rowsDeleted = database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+                if (rowsDeleted != 0) {
+                    getContext().getContentResolver().notifyChange(uri, null);
+                }
+                return rowsDeleted;
+            }
+            default: throw new IllegalArgumentException("Error deleting row" + uri);
+        }
+
     }
 
     @Override
-    public int update(@NonNull Uri uri, @Nullable ContentValues values, @Nullable String selection, @Nullable String[] selectionArgs) {
-        return 0;
+    public int update(Uri uri, ContentValues contentValues, String selection,
+                      String[] selectionArgs) {
+        final int match = sUriMatcher.match(uri);
+        switch (match) {
+            case PETS:
+                return updatePet(uri, contentValues, selection, selectionArgs);
+            case PET_ID:
+                // For the PET_ID code, extract out the ID from the URI,
+                // so we know which row to update. Selection will be "_id=?" and selection
+                // arguments will be a String array containing the actual ID.
+                selection = PetEntry._ID + "=?";
+                selectionArgs = new String[] { String.valueOf(ContentUris.parseId(uri)) };
+                return updatePet(uri, contentValues, selection, selectionArgs);
+            default:
+                throw new IllegalArgumentException("Update is not supported for " + uri);
+        }
+    }
+
+    /**
+     * Update pets in the database with the given content values. Apply the changes to the rows
+     * specified in the selection and selection arguments (which could be 0 or 1 or more pets).
+     * Return the number of rows that were successfully updated.
+     */
+    private int updatePet(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+        if (values.containsKey(PetEntry.COLUMN_PET_NAME)) {
+            String name = values.getAsString(PetEntry.COLUMN_PET_NAME);
+            if (name == null) {
+                throw new IllegalArgumentException("Pet must have a name.");
+            }
+        }
+        if (values.containsKey(PetEntry.COLUMN_PET_WEIGHT)) {
+            Integer weight = values.getAsInteger(PetEntry.COLUMN_PET_WEIGHT);
+            if (weight < 0&& weight != null) {
+                throw new IllegalArgumentException("Pet needs a weight value.");
+            }
+        }
+        if (values.containsKey(PetEntry.COLUMN_PET_GENDER)) {
+            Integer gender = values.getAsInteger(PetEntry.COLUMN_PET_GENDER);
+            if (gender == null || PetEntry.isValidGender(gender)) {
+                throw new IllegalArgumentException("Pet needs a gender");
+            }
+        }
+        if (values.equals(0)) {
+            return 0;
+        }
+
+        SQLiteDatabase database = mDbHelper.getWritableDatabase();
+
+        // Perform the update on the database and get the number of rows affected
+        int rowsUpdated = database.update(PetEntry.TABLE_NAME, values, selection, selectionArgs);
+        // If 1 or more rows were updated, then notify all listeners that the data at the
+        // given URI has changed
+        if (rowsUpdated != 0) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+        // Return the number of rows updated
+        return rowsUpdated;
     }
 }

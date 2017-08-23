@@ -17,10 +17,13 @@ package com.example.android.pets;
 
 import android.content.ContentValues;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.NavUtils;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -36,6 +39,8 @@ import com.example.android.pets.data.PetDbHelper;
  * Allows user to create a new pet or edit an existing one.
  */
 public class EditorActivity extends AppCompatActivity {
+
+    private static final String LOG_TAG = EditorActivity.class.getSimpleName();
 
     /** EditText field to enter the pet's name */
     private EditText mNameEditText;
@@ -60,6 +65,22 @@ public class EditorActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_editor);
+
+        //Get the Uri from the OnItemClicked intent object passed from CatalogActivity
+        Uri uri = getIntent().getData();
+        if (uri != null) {
+            Log.i(LOG_TAG, "Uri passed from CatalogActivity: " + Uri.parse(uri.toString()));
+        }
+        //Get an instance of the ActionBar so we can change the title of the activity
+        ActionBar actionBar = getSupportActionBar();
+
+        if (uri != null) {
+            //If uri is not null, user clicked on existing pet item and we set title to "Edit a pet"
+            actionBar.setTitle(getString(R.string.editor_activity_edit_pet));
+        } else {
+            //If uri is null this is a new pet so we set title to "Add a pet"
+            actionBar.setTitle(getString(R.string.editor_activity_title_new_pet));
+        }
 
         // Find all relevant views that we will need to read user input from
         mNameEditText = (EditText) findViewById(R.id.edit_pet_name);
