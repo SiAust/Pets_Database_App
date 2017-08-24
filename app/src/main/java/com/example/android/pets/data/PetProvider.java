@@ -227,13 +227,13 @@ public class PetProvider extends ContentProvider {
         }
         if (values.containsKey(PetEntry.COLUMN_PET_WEIGHT)) {
             Integer weight = values.getAsInteger(PetEntry.COLUMN_PET_WEIGHT);
-            if (weight < 0&& weight != null) {
+            if (weight < 0 && weight != null) {
                 throw new IllegalArgumentException("Pet needs a weight value.");
             }
         }
         if (values.containsKey(PetEntry.COLUMN_PET_GENDER)) {
             Integer gender = values.getAsInteger(PetEntry.COLUMN_PET_GENDER);
-            if (gender == null || PetEntry.isValidGender(gender)) {
+            if (gender == null || !PetEntry.isValidGender(gender)) {
                 throw new IllegalArgumentException("Pet needs a gender");
             }
         }
