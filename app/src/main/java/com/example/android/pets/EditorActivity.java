@@ -287,7 +287,7 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
                     NavUtils.navigateUpFromSameTask(EditorActivity.this);
                     return true;
                 }
-
+//some stuff has changed Github
                 // Otherwise if there are unsaved changes, setup a dialog to warn the user.
                 // Create a click listener to handle the user confirming that
                 // changes should be discarded.
