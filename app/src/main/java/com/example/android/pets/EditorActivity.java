@@ -15,7 +15,11 @@
  */
 package com.example.android.pets;
 
+import android.app.LoaderManager;
 import android.content.ContentValues;
+import android.content.CursorLoader;
+import android.content.Loader;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
@@ -38,9 +42,11 @@ import com.example.android.pets.data.PetDbHelper;
 /**
  * Allows user to create a new pet or edit an existing one.
  */
-public class EditorActivity extends AppCompatActivity {
+public class EditorActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
 
     private static final String LOG_TAG = EditorActivity.class.getSimpleName();
+
+    private static final int EDIT_PET_LOADER = 1;
 
     /** EditText field to enter the pet's name */
     private EditText mNameEditText;
@@ -58,6 +64,10 @@ public class EditorActivity extends AppCompatActivity {
      * 0 for unknown gender, 1 for male, 2 for female.
      */
     private int mGender = 0;
+    // A global Uri object so we can pass the Uri from the intent to the loader.
+    private Uri mUri;
+    // A global Cursor object to pass data from the Loader
+    private Cursor mCursor;
 
     private Long mRowId;
 
@@ -67,16 +77,20 @@ public class EditorActivity extends AppCompatActivity {
         setContentView(R.layout.activity_editor);
 
         //Get the Uri from the OnItemClicked intent object passed from CatalogActivity
-        Uri uri = getIntent().getData();
-        if (uri != null) {
-            Log.i(LOG_TAG, "Uri passed from CatalogActivity: " + Uri.parse(uri.toString()));
+        mUri = getIntent().getData();
+        // If mUri isn't null log a statement containing it's value in a String.
+        if (mUri != null) {
+            Log.i(LOG_TAG, "Uri passed from CatalogActivity: " + Uri.parse(mUri.toString()));
         }
         //Get an instance of the ActionBar so we can change the title of the activity
         ActionBar actionBar = getSupportActionBar();
 
-        if (uri != null) {
+        if (mUri != null) {
             //If uri is not null, user clicked on existing pet item and we set title to "Edit a pet"
             actionBar.setTitle(getString(R.string.editor_activity_edit_pet));
+            // Initialise the Loader to get a single pet Cursor
+            LoaderManager loaderManager = getLoaderManager();
+            loaderManager.initLoader(EDIT_PET_LOADER, null, this);
         } else {
             //If uri is null this is a new pet so we set title to "Add a pet"
             actionBar.setTitle(getString(R.string.editor_activity_title_new_pet));
@@ -119,6 +133,7 @@ public class EditorActivity extends AppCompatActivity {
                     } else {
                         mGender = PetEntry.GENDER_UNKNOWN; // Unknown
                     }
+                    Log.i(LOG_TAG, "genderSpinner value: " + mGender);
                 }
             }
 
@@ -130,7 +145,7 @@ public class EditorActivity extends AppCompatActivity {
         });
     }
 
-    private void insertPet(){
+    private void savePet(){
         PetDbHelper dbHelper = new PetDbHelper(this);
         SQLiteDatabase db = dbHelper.getWritableDatabase();
 
@@ -145,7 +160,14 @@ public class EditorActivity extends AppCompatActivity {
         values.put(PetEntry.COLUMN_PET_GENDER, mGender);
         values.put(PetEntry.COLUMN_PET_WEIGHT, weight);
 
-        getContentResolver().insert(PetEntry.CONTENT_URI, values);
+       if (mUri == null) {
+           //mUri is null meaning this is a new pet so we insert a new row.
+           getContentResolver().insert(PetEntry.CONTENT_URI, values);
+       } else {
+           // mUri is not null so this is an existing pet and we update it using mUri to find its
+           // location in the table.
+           int rowsAffected = getContentResolver().update(mUri, values, null, null);
+       }
 
 //        mRowId = db.insert(PetEntry.TABLE_NAME, null, values);
     }
@@ -173,7 +195,7 @@ public class EditorActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             // Respond to a click on the "Save" menu option
             case R.id.action_save:
-                insertPet();
+                savePet();
                 finish();
                 //makeToast();
                 return true;
@@ -189,4 +211,65 @@ public class EditorActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        if (mUri == null) {
+            return null;
+        }
+
+        String[] projection = {
+                PetEntry._ID,
+                PetEntry.COLUMN_PET_WEIGHT,
+                PetEntry.COLUMN_PET_GENDER,
+                PetEntry.COLUMN_PET_BREED,
+                PetEntry.COLUMN_PET_NAME
+        };
+
+        return new CursorLoader(this, mUri, projection, null, null, null);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+        boolean cursorEmpty;
+        if (data != null) {
+            cursorEmpty = false;
+        } else {
+            cursorEmpty = true;
+        }
+        Log.i(LOG_TAG, "onLoadFinished cursor null? " + cursorEmpty);
+        // Move to the first row of the returned cursor object
+        data.moveToFirst();
+        // Get values from appropriate columns
+        String name = data.getString(data.getColumnIndex(PetEntry.COLUMN_PET_NAME));
+        String breed = data.getString(data.getColumnIndex(PetEntry.COLUMN_PET_BREED));
+        int gender = data.getInt(data.getColumnIndex(PetEntry.COLUMN_PET_GENDER));
+        String weight = data.getString(data.getColumnIndex(PetEntry.COLUMN_PET_WEIGHT));
+        // Set values on our activity fields
+        mNameEditText.setText(name);
+        mBreedEditText.setText(breed);
+//        mGenderSpinner.setSelection(gender);
+        switch (gender) {
+            case PetEntry.GENDER_MALE:
+                mGenderSpinner.setSelection(1);
+                break;
+            case PetEntry.GENDER_FEMALE:
+                mGenderSpinner.setSelection(2);
+                break;
+            case PetEntry.GENDER_UNKNOWN:
+                mGenderSpinner.setSelection(0);
+                break;
+        }
+        mWeightEditText.setText(weight);
+        Log.i(LOG_TAG, "Loader data name: " + name);
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+        mNameEditText.clearComposingText();
+        mBreedEditText.clearComposingText();
+        mGenderSpinner.setSelection(PetEntry.GENDER_UNKNOWN);
+        mWeightEditText.clearComposingText();
+    }
+
 }
