@@ -34,6 +34,10 @@ public class PetCursorAdapter extends CursorAdapter {
         // Extract properties from cursor
         String name = cursor.getString(cursor.getColumnIndex(PetEntry.COLUMN_PET_NAME));
         String breed = cursor.getString(cursor.getColumnIndex(PetEntry.COLUMN_PET_BREED));
+        // If breed is null or empty replace with "Unknown breed" string resource.
+        if (breed == null|| breed.isEmpty()) {
+            breed = context.getString(R.string.unknown_breed);
+        }
         // Populate views with extracted values
         nameTextView.setText(name);
         breedTextView.setText(breed);

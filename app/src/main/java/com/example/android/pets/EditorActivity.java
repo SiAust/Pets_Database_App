@@ -37,6 +37,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.Toast;
 
 import com.example.android.pets.data.PetContract.PetEntry;
 
@@ -97,6 +98,10 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
         } else {
             //If uri is null this is a new pet so we set title to "Add a pet"
             actionBar.setTitle(getString(R.string.editor_activity_title_new_pet));
+
+            // Invalidate the options menu, so the "Delete" menu option can be hidden.
+            // (It doesn't make sense to delete a pet that hasn't been created yet.)
+            invalidateOptionsMenu();
         }
 
         // Find all relevant views that we will need to read user input from
@@ -248,6 +253,42 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 //        mRowId = db.insert(PetEntry.TABLE_NAME, null, values);
     }
 
+    private void showDeleteConfirmationDialog() {
+        // Create an AlertDialog.Builder and set the message, and click listeners
+        // for the positive and negative buttons on the dialog.
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(R.string.delete_dialog_msg);
+        builder.setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked the "Delete" button, so delete the pet.
+                deletePet();
+                finish();
+            }
+        });
+        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked the "Cancel" button, so dismiss the dialog
+                // and continue editing the pet.
+                if (dialog != null) {
+                    dialog.dismiss();
+                }
+            }
+        });
+
+        // Create and show the AlertDialog
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+    }
+
+    private void deletePet() {
+        int deletedPet = getContentResolver().delete(mUri, null, null);
+        if (deletedPet == 1) {
+            Toast.makeText(this, "Pet deleted.", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Error deleting pet.", Toast.LENGTH_SHORT).show();
+        }
+        getLoaderManager().destroyLoader(EDIT_PET_LOADER);
+    }
     /* Moved toast messages to PetProvider temporarily
      private void makeToast() {
         if (mRowId == -1){
@@ -266,6 +307,18 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        //If this is a new pet hide the "Delete" menu option.
+        if (mUri == null) {
+            MenuItem menuItem = menu.findItem(R.id.action_delete);
+            menuItem.setVisible(false);
+        }
+
+        return true;
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // User clicked on a menu option in the app bar overflow menu
         switch (item.getItemId()) {
@@ -273,10 +326,10 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
             case R.id.action_save:
                 savePet();
                 finish();
-                //makeToast();
                 return true;
             // Respond to a click on the "Delete" menu option
             case R.id.action_delete:
+                showDeleteConfirmationDialog();
                 // Do nothing for now
                 return true;
             // Respond to a click on the "Up" arrow button in the app bar
